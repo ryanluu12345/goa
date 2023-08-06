@@ -12,6 +12,13 @@ const (
 	// service as defined in the design. The generated transport code
 	// initializes the corresponding value prior to invoking the endpoint.
 	ServiceKey
+
+	// PathPatternKey is the request context key used to store the name of the
+	// path pattern. This value is used in a variety of middlewares for metrics
+	// and tracing and is preferred to dynamic paths because path patterns don't
+	// contain sensitive details or values that can cause metrics cardinality
+	// to explode.
+	PathPatternKey
 )
 
 type (

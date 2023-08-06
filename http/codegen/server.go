@@ -204,7 +204,9 @@ func conversionData(varName, name string, dt expr.DataType) map[string]any {
 
 // headerConversionData produces the template data suitable for executing the
 // "header_conversion" template.
-func headerConversionData(dt expr.DataType, varName string, required bool, target string) map[string]any {
+func headerConversionData(
+	dt expr.DataType, varName string, required bool, target string,
+) map[string]any {
 	return map[string]any{
 		"Type":     dt,
 		"VarName":  varName,
@@ -337,8 +339,10 @@ func {{ .ServerInit }}(
 				{{- end }}
 			{{- end }}
 		},
-		{{- range .Endpoints }}
-		{{ .Method.VarName }}: {{ .HandlerInit }}(e.{{ .Method.VarName }}, mux, {{ if .MultipartRequestDecoder }}{{ .MultipartRequestDecoder.InitName }}(mux, {{ .MultipartRequestDecoder.VarName }}){{ else }}decoder{{ end }}, encoder, errhandler, formatter{{ if isWebSocketEndpoint . }}, upgrader, configurer.{{ .Method.VarName }}Fn{{ end }}),
+		{{- range $e := .Endpoints }}
+			{{- range $e.Routes }}
+		{{ $e.Method.VarName }}: {{ $e.HandlerInit }}(e.{{ $e.Method.VarName }}, mux, {{ if $e.MultipartRequestDecoder }}{{ $e.MultipartRequestDecoder.InitName }}(mux, {{ $e.MultipartRequestDecoder.VarName }}){{ else }}decoder{{ end }}, encoder, errhandler, formatter, "{{ .Path }}"{{ if isWebSocketEndpoint $e }}, upgrader, configurer.{{ $e.Method.VarName }}Fn{{ end }}),
+			{{- end }}
 		{{- end }}
 		{{- range .FileServers }}
 		{{ .VarName }}: http.FileServer({{ .ArgName }}),
@@ -433,6 +437,7 @@ func {{ .HandlerInit }}(
 	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
 	errhandler func(context.Context, http.ResponseWriter, error),
 	formatter func(ctx context.Context, err error) goahttp.Statuser,
+	pathPattern string,
 	{{- if isWebSocketEndpoint . }}
 	upgrader goahttp.Upgrader,
 	configurer goahttp.ConnConfigureFunc,
@@ -457,6 +462,7 @@ func {{ .HandlerInit }}(
 		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
 		ctx = context.WithValue(ctx, goa.MethodKey, {{ printf "%q" .Method.Name }})
 		ctx = context.WithValue(ctx, goa.ServiceKey, {{ printf "%q" .ServiceName }})
+		ctx = context.WithValue(ctx, goa.PathPatternKey, pathPattern)
 
 	{{- if mustDecodeRequest . }}
 		{{ if .Redirect }}_{{ else }}payload{{ end }}, err := decodeRequest(r)
